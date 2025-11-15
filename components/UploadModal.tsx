@@ -607,13 +607,13 @@ export default function UploadModal({
                     See how your data will be stored
                   </p>
                 </div>
-                
+
                 <div className="p-6">
                   <JsonAnalysisCard
                     analysis={jsonPreview.analysis}
                     filename={jsonPreview.fileName}
                   />
-                  
+
                   <div className="mt-4 flex gap-3">
                     <button
                       onClick={() => {
@@ -628,7 +628,10 @@ export default function UploadModal({
                         const preview = jsonPreview;
                         setJsonPreview(null);
                         // Continue to schema preview if there are similar schemas
-                        if (preview.similarSchemas && preview.similarSchemas.length > 0) {
+                        if (
+                          preview.similarSchemas &&
+                          preview.similarSchemas.length > 0
+                        ) {
                           // Show schema preview without analysis modal
                           setJsonPreview({ ...preview, analysis: undefined });
                         } else {
@@ -645,7 +648,7 @@ export default function UploadModal({
               </div>
             </div>
           )}
-          
+
           <JsonSchemaPreview
             jsonContent={jsonPreview.content}
             fileName={jsonPreview.fileName}

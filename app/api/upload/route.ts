@@ -58,8 +58,8 @@ export async function POST(request: NextRequest) {
       };
 
       // Intelligent database selection with analysis logging for JSON files
-      const storageType = selectDatabase(fileData, { 
-        logAnalysis: extension === "json" && Object.keys(metadata).length > 0 
+      const storageType = selectDatabase(fileData, {
+        logAnalysis: extension === "json" && Object.keys(metadata).length > 0,
       });
 
       console.log(`📁 ${file.name} → ${storageType.toUpperCase()}`);

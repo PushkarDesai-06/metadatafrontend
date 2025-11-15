@@ -10,20 +10,20 @@ export interface StructureAnalysis {
   fieldVariance: number; // 0-100, higher = more variance
   dataSparseity: number; // 0-100, higher = more sparse
   mixedTypes: boolean;
-  
+
   // Data characteristics
   isTabular: boolean; // Array of objects with same fields
   isFlat: boolean; // Max depth <= 2
   isDeeplyNested: boolean; // Depth > 3
   hasArrays: boolean;
   hasNestedArrays: boolean;
-  
+
   // Counts
   totalFields: number;
   uniqueFieldNames: number;
   arrayCount: number;
   objectCount: number;
-  
+
   // Recommendation
   recommendedStorage: "postgres" | "mongodb";
   confidence: number; // 0-100
@@ -101,20 +101,23 @@ function analyzeArray(arr: any[], analysis: StructureAnalysis) {
   }
 
   // Check if it's an array of objects (tabular data)
-  const allObjects = arr.every((item) => typeof item === "object" && item !== null && !Array.isArray(item));
+  const allObjects = arr.every(
+    (item) => typeof item === "object" && item !== null && !Array.isArray(item)
+  );
 
   if (allObjects && arr.length > 0) {
     // Analyze schema consistency
     const schemas = arr.map((item) => Object.keys(item).sort().join(","));
     const uniqueSchemas = new Set(schemas);
-    
-    analysis.schemaConsistency = ((arr.length - uniqueSchemas.size + 1) / arr.length) * 100;
+
+    analysis.schemaConsistency =
+      ((arr.length - uniqueSchemas.size + 1) / arr.length) * 100;
     analysis.isTabular = analysis.schemaConsistency > 80; // 80%+ same schema = tabular
 
     // Analyze field variance
     const allFields = new Set<string>();
     const fieldCounts = new Map<string, number>();
-    
+
     arr.forEach((item) => {
       Object.keys(item).forEach((field) => {
         allFields.add(field);
@@ -122,11 +125,16 @@ function analyzeArray(arr: any[], analysis: StructureAnalysis) {
       });
     });
 
-    analysis.totalFields = Array.from(fieldCounts.values()).reduce((a, b) => a + b, 0);
+    analysis.totalFields = Array.from(fieldCounts.values()).reduce(
+      (a, b) => a + b,
+      0
+    );
     analysis.uniqueFieldNames = allFields.size;
 
     // Field variance: how many fields are not present in all objects
-    const inconsistentFields = Array.from(fieldCounts.values()).filter((count) => count < arr.length).length;
+    const inconsistentFields = Array.from(fieldCounts.values()).filter(
+      (count) => count < arr.length
+    ).length;
     analysis.fieldVariance = (inconsistentFields / allFields.size) * 100;
 
     // Data sparseity: percentage of null/undefined values
@@ -140,7 +148,8 @@ function analyzeArray(arr: any[], analysis: StructureAnalysis) {
         }
       });
     });
-    analysis.dataSparseity = totalValues > 0 ? (nullCount / totalValues) * 100 : 0;
+    analysis.dataSparseity =
+      totalValues > 0 ? (nullCount / totalValues) * 100 : 0;
 
     // Check for mixed types in same field
     const fieldTypes = new Map<string, Set<string>>();
@@ -149,11 +158,15 @@ function analyzeArray(arr: any[], analysis: StructureAnalysis) {
         if (!fieldTypes.has(field)) {
           fieldTypes.set(field, new Set());
         }
-        fieldTypes.get(field)!.add(Array.isArray(value) ? "array" : typeof value);
+        fieldTypes
+          .get(field)!
+          .add(Array.isArray(value) ? "array" : typeof value);
       });
     });
 
-    analysis.mixedTypes = Array.from(fieldTypes.values()).some((types) => types.size > 1);
+    analysis.mixedTypes = Array.from(fieldTypes.values()).some(
+      (types) => types.size > 1
+    );
 
     // Check for nested arrays
     arr.forEach((item) => {
@@ -185,7 +198,7 @@ function analyzeObject(obj: any, analysis: StructureAnalysis) {
       hasArrayValues = true;
       analysis.hasArrays = true;
       analysis.arrayCount++;
-      
+
       // Recursively analyze the array
       if (obj[key].length > 0) {
         analyzeArray(obj[key], analysis);
@@ -199,7 +212,7 @@ function analyzeObject(obj: any, analysis: StructureAnalysis) {
   const hasNestedStructures = Object.values(obj).some(
     (v) => typeof v === "object" && v !== null
   );
-  
+
   if (!hasNestedStructures) {
     analysis.isFlat = true;
   }
@@ -225,13 +238,17 @@ function countStructures(obj: any, analysis: StructureAnalysis) {
 
 function hasNestedArrays(obj: any): boolean {
   if (Array.isArray(obj)) {
-    return obj.some((item) => Array.isArray(item) || (typeof item === "object" && item !== null && hasNestedArrays(item)));
+    return obj.some(
+      (item) =>
+        Array.isArray(item) ||
+        (typeof item === "object" && item !== null && hasNestedArrays(item))
+    );
   }
-  
+
   if (typeof obj === "object" && obj !== null) {
     return Object.values(obj).some((value) => hasNestedArrays(value));
   }
-  
+
   return false;
 }
 
@@ -243,53 +260,83 @@ function determineRecommendation(analysis: StructureAnalysis) {
   // Factor 1: Nesting depth (weight: 30) - INCREASED weight
   if (analysis.isDeeplyNested) {
     mongoScore += 30;
-    reasons.push(`Deep nesting (${analysis.nestingDepth} levels) - MongoDB handles nested documents better`);
+    reasons.push(
+      `Deep nesting (${analysis.nestingDepth} levels) - MongoDB handles nested documents better`
+    );
   } else if (analysis.isFlat) {
     sqlScore += 25;
-    reasons.push(`Flat structure (${analysis.nestingDepth} levels) - PostgreSQL JSONB is efficient for this`);
+    reasons.push(
+      `Flat structure (${analysis.nestingDepth} levels) - PostgreSQL JSONB is efficient for this`
+    );
   } else {
     sqlScore += 12;
     mongoScore += 13;
-    reasons.push(`Moderate nesting (${analysis.nestingDepth} levels) - Both databases can handle this`);
+    reasons.push(
+      `Moderate nesting (${analysis.nestingDepth} levels) - Both databases can handle this`
+    );
   }
 
   // CRITICAL: If deeply nested, heavily favor MongoDB regardless of other factors
   if (analysis.nestingDepth >= 5) {
     mongoScore += 20; // Extra bonus for very deep nesting
-    reasons.push(`Very deep nesting (${analysis.nestingDepth} levels) - Relational DB would be inefficient`);
+    reasons.push(
+      `Very deep nesting (${analysis.nestingDepth} levels) - Relational DB would be inefficient`
+    );
   }
 
   // CRITICAL: Nested arrays are a strong MongoDB indicator
   if (analysis.hasNestedArrays) {
     mongoScore += 15; // Strong signal for document DB
-    reasons.push(`Nested arrays detected - MongoDB's document model handles this naturally`);
+    reasons.push(
+      `Nested arrays detected - MongoDB's document model handles this naturally`
+    );
   }
 
   // Factor 2: Tabular structure (weight: 25) - DECREASED weight
   if (analysis.isTabular && !analysis.isDeeplyNested) {
     // Only favor SQL if BOTH tabular AND not deeply nested
     sqlScore += 25;
-    reasons.push(`Tabular data with ${analysis.schemaConsistency.toFixed(1)}% schema consistency - Ideal for relational DB`);
+    reasons.push(
+      `Tabular data with ${analysis.schemaConsistency.toFixed(
+        1
+      )}% schema consistency - Ideal for relational DB`
+    );
   } else if (analysis.schemaConsistency < 50) {
     mongoScore += 25;
-    reasons.push(`Inconsistent schema (${analysis.schemaConsistency.toFixed(1)}% consistency) - MongoDB's flexible schema is better`);
+    reasons.push(
+      `Inconsistent schema (${analysis.schemaConsistency.toFixed(
+        1
+      )}% consistency) - MongoDB's flexible schema is better`
+    );
   } else if (analysis.isDeeplyNested) {
     // Tabular but deeply nested = still MongoDB
     mongoScore += 15;
-    reasons.push(`Consistent top-level schema but deeply nested - Document DB better for complex structure`);
+    reasons.push(
+      `Consistent top-level schema but deeply nested - Document DB better for complex structure`
+    );
   } else {
     sqlScore += 12;
     mongoScore += 13;
-    reasons.push(`Moderate schema consistency (${analysis.schemaConsistency.toFixed(1)}%)`);
+    reasons.push(
+      `Moderate schema consistency (${analysis.schemaConsistency.toFixed(1)}%)`
+    );
   }
 
   // Factor 3: Field variance (weight: 20)
   if (analysis.fieldVariance > 40) {
     mongoScore += 20;
-    reasons.push(`High field variance (${analysis.fieldVariance.toFixed(1)}%) - MongoDB handles optional fields better`);
+    reasons.push(
+      `High field variance (${analysis.fieldVariance.toFixed(
+        1
+      )}%) - MongoDB handles optional fields better`
+    );
   } else if (analysis.fieldVariance < 15) {
     sqlScore += 20;
-    reasons.push(`Low field variance (${analysis.fieldVariance.toFixed(1)}%) - Consistent structure suits SQL`);
+    reasons.push(
+      `Low field variance (${analysis.fieldVariance.toFixed(
+        1
+      )}%) - Consistent structure suits SQL`
+    );
   } else {
     sqlScore += 10;
     mongoScore += 10;
@@ -298,28 +345,46 @@ function determineRecommendation(analysis: StructureAnalysis) {
   // Factor 4: Data sparseity (weight: 15)
   if (analysis.dataSparseity > 30) {
     mongoScore += 15;
-    reasons.push(`Sparse data (${analysis.dataSparseity.toFixed(1)}% null values) - MongoDB saves space`);
+    reasons.push(
+      `Sparse data (${analysis.dataSparseity.toFixed(
+        1
+      )}% null values) - MongoDB saves space`
+    );
   } else {
     sqlScore += 15;
-    reasons.push(`Dense data (${analysis.dataSparseity.toFixed(1)}% null values) - SQL handles well`);
+    reasons.push(
+      `Dense data (${analysis.dataSparseity.toFixed(
+        1
+      )}% null values) - SQL handles well`
+    );
   }
 
   // Factor 5: Mixed types (weight: 10)
   if (analysis.mixedTypes) {
     mongoScore += 10;
-    reasons.push("Mixed field types detected - MongoDB's schema-less nature is advantageous");
+    reasons.push(
+      "Mixed field types detected - MongoDB's schema-less nature is advantageous"
+    );
   } else {
     sqlScore += 10;
     reasons.push("Consistent field types - SQL type safety is beneficial");
   }
 
   // Factor 6: Structural complexity (NEW - weight: 15)
-  const avgObjectsPerItem = analysis.totalFields > 0 ? analysis.objectCount / Math.max(1, analysis.totalFields) : 0;
-  const avgArraysPerItem = analysis.totalFields > 0 ? analysis.arrayCount / Math.max(1, analysis.totalFields) : 0;
-  
+  const avgObjectsPerItem =
+    analysis.totalFields > 0
+      ? analysis.objectCount / Math.max(1, analysis.totalFields)
+      : 0;
+  const avgArraysPerItem =
+    analysis.totalFields > 0
+      ? analysis.arrayCount / Math.max(1, analysis.totalFields)
+      : 0;
+
   if (analysis.objectCount > 20 || analysis.arrayCount > 10) {
     mongoScore += 15;
-    reasons.push(`High structural complexity (${analysis.objectCount} nested objects, ${analysis.arrayCount} arrays) - Document DB excels here`);
+    reasons.push(
+      `High structural complexity (${analysis.objectCount} nested objects, ${analysis.arrayCount} arrays) - Document DB excels here`
+    );
   } else if (analysis.objectCount < 5 && analysis.arrayCount < 3) {
     sqlScore += 15;
   }

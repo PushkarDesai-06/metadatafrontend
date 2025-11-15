@@ -31,7 +31,7 @@ export function selectDatabase(
   // For JSON files, use detailed structure analysis
   if (extension === "json" && file.content) {
     const analysis = analyzeJsonStructure(file.content);
-    
+
     if (options?.logAnalysis) {
       console.log("\n" + getAnalysisSummary(analysis));
     }
