@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, ChevronRight, Table2, FileJson } from "lucide-react";
+import { ChevronDown, ChevronRight, Table2, FileJson, ExternalLink } from "lucide-react";
 
 interface JsonTableViewerProps {
   data: any;
@@ -14,7 +14,7 @@ export default function JsonTableViewer({
   title = "JSON Data",
   storageType,
 }: JsonTableViewerProps) {
-  // MongoDB data defaults to document view, PostgreSQL defaults to table view
+  // MongoDB data is locked to document view, PostgreSQL defaults to table view
   const defaultView = storageType === "mongodb" ? "document" : "table";
   const [viewMode, setViewMode] = useState<"table" | "document">(defaultView);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
@@ -306,6 +306,59 @@ export default function JsonTableViewer({
     return <span className="text-gray-300">{String(value)}</span>;
   };
 
+  const convertToCSV = (): string => {
+    if (!Array.isArray(data) || data.length === 0) {
+      return "";
+    }
+
+    // Get all unique keys from all objects
+    const allKeys = new Set<string>();
+    data.forEach((item) => {
+      if (typeof item === "object" && item !== null) {
+        Object.keys(item).forEach((key) => allKeys.add(key));
+      }
+    });
+    const columns = Array.from(allKeys);
+
+    // Create CSV header
+    const header = columns.map(col => `"${col}"`).join(",");
+    
+    // Create CSV rows
+    const rows = data.map((row) => {
+      return columns.map(col => {
+        const value = row[col];
+        if (value === null || value === undefined) {
+          return "";
+        }
+        if (typeof value === "object") {
+          return `"${JSON.stringify(value).replace(/"/g, '""')}"`;
+        }
+        return `"${String(value).replace(/"/g, '""')}"`;
+      }).join(",");
+    });
+
+    return [header, ...rows].join("\n");
+  };
+
+  const downloadCSV = () => {
+    const csv = convertToCSV();
+    if (!csv) {
+      alert("No data available to export");
+      return;
+    }
+
+    // Create a data URI with CSV content
+    const csvContent = "data:text/csv;charset=utf-8," + encodeURIComponent(csv);
+    
+    // Download the CSV file
+    const link = document.createElement("a");
+    link.setAttribute("href", csvContent);
+    link.setAttribute("download", `${title.replace(/[^a-z0-9]/gi, '_')}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   return (
     <div className="bg-gray-800 rounded-xl border-2 border-gray-700 shadow-sm">
       <div className="flex items-center justify-between p-4 border-b border-gray-700 bg-gradient-to-r from-gray-900 to-gray-800">
@@ -324,30 +377,55 @@ export default function JsonTableViewer({
           )}
         </div>
         <div className="flex gap-2">
-          <button
-            onClick={() => setViewMode("table")}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
-              viewMode === "table"
-                ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600"
-            }`}
-            title="Table View (Best for PostgreSQL data)"
-          >
-            <Table2 size={16} />
-            Table
-          </button>
-          <button
-            onClick={() => setViewMode("document")}
-            className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
-              viewMode === "document"
-                ? "bg-green-600 text-white shadow-lg shadow-green-500/30"
-                : "bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600"
-            }`}
-            title="Document View (BSON format for MongoDB data)"
-          >
-            <FileJson size={16} />
-            BSON
-          </button>
+          {/* Only show view toggle for PostgreSQL data */}
+          {storageType === "postgres" && (
+            <>
+              <button
+                onClick={() => setViewMode("table")}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
+                  viewMode === "table"
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600"
+                }`}
+                title="Table View"
+              >
+                <Table2 size={16} />
+                Table
+              </button>
+              <button
+                onClick={() => setViewMode("document")}
+                className={`px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all ${
+                  viewMode === "document"
+                    ? "bg-green-600 text-white shadow-lg shadow-green-500/30"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600 border border-gray-600"
+                }`}
+                title="Document View (BSON format)"
+              >
+                <FileJson size={16} />
+                BSON
+              </button>
+            </>
+          )}
+          
+          {/* MongoDB data only shows BSON label */}
+          {storageType === "mongodb" && (
+            <div className="px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium bg-green-600 text-white shadow-lg shadow-green-500/30">
+              <FileJson size={16} />
+              BSON Document
+            </div>
+          )}
+          
+          {/* CSV download button for PostgreSQL table data */}
+          {storageType === "postgres" && viewMode === "table" && Array.isArray(data) && data.length > 0 && (
+            <button
+              onClick={downloadCSV}
+              className="px-3 py-1.5 rounded-lg flex items-center gap-2 text-sm font-medium transition-all bg-gradient-to-r from-green-600 to-emerald-600 text-white hover:from-green-500 hover:to-emerald-500 shadow-lg shadow-green-500/30 hover:scale-105"
+              title="Download as CSV file"
+            >
+              <ExternalLink size={16} />
+              Download CSV
+            </button>
+          )}
         </div>
       </div>
 
