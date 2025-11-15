@@ -23,6 +23,9 @@ interface FileCardProps {
   onPreview: (file: FileMetadata) => void;
   onDelete?: (file: FileMetadata) => void;
   onRename?: (file: FileMetadata, newName: string) => void;
+  selectionMode?: boolean;
+  isSelected?: boolean;
+  onSelect?: (file: FileMetadata) => void;
 }
 
 export default function FileCard({
@@ -30,6 +33,9 @@ export default function FileCard({
   onPreview,
   onDelete,
   onRename,
+  selectionMode = false,
+  isSelected = false,
+  onSelect,
 }: FileCardProps) {
   const [videoThumbnail, setVideoThumbnail] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
@@ -169,7 +175,16 @@ export default function FileCard({
   };
 
   return (
-    <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 hover:shadow-xl hover:shadow-blue-900/20 transition-all group">
+    <div 
+      className={`bg-gray-800 border rounded-lg p-4 hover:shadow-xl hover:shadow-blue-900/20 transition-all group ${
+        isSelected ? 'border-blue-500 ring-2 ring-blue-500' : 'border-gray-700'
+      } ${selectionMode ? 'cursor-pointer' : ''}`}
+      onClick={() => {
+        if (selectionMode && onSelect) {
+          onSelect(file);
+        }
+      }}
+    >
       {/* Image preview for image files */}
       {file.category === "Images" && (
         <div className="mb-3 rounded-lg overflow-hidden bg-gray-900 aspect-video flex items-center justify-center">
@@ -207,8 +222,19 @@ export default function FileCard({
       )}
 
       <div className="flex items-start justify-between mb-3">
-        <div className="shrink-0">{getFileIcon()}</div>
-        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="shrink-0 flex items-center gap-2">
+          {selectionMode && (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onSelect && onSelect(file)}
+              onClick={(e) => e.stopPropagation()}
+              className="w-5 h-5 text-blue-600 bg-gray-700 border-gray-600 rounded focus:ring-blue-500 cursor-pointer"
+            />
+          )}
+          {getFileIcon()}
+        </div>
+        <div className={`flex gap-1 transition-opacity ${selectionMode ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
           <button
             onClick={() => onPreview(file)}
             className="p-1.5 hover:bg-gray-700 rounded transition-colors"

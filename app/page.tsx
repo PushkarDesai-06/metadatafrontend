@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Upload, RefreshCw } from "lucide-react";
+import { Upload, RefreshCw, Download, Trash2, GitMerge, CheckSquare, Square } from "lucide-react";
 import Sidebar from "@/components/Sidebar";
 import SearchBar, { SearchFilters } from "@/components/SearchBar";
 import FileCard from "@/components/FileCard";
 import UploadModal from "@/components/UploadModal";
 import FilePreviewModal from "@/components/FilePreviewModal";
+import JsonMergeModal from "@/components/JsonMergeModal";
 import { FileMetadata } from "@/types/file";
+import JSZip from "jszip";
 
 export default function Home() {
   const [files, setFiles] = useState<FileMetadata[]>([]);
@@ -16,6 +18,9 @@ export default function Home() {
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [previewFile, setPreviewFile] = useState<FileMetadata | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedFiles, setSelectedFiles] = useState<FileMetadata[]>([]);
+  const [mergeModalOpen, setMergeModalOpen] = useState(false);
   const [stats, setStats] = useState({
     postgres: { total: 0, byCategory: {}, byExtension: {} },
     mongodb: { total: 0, byCategory: {}, byExtension: {} },
@@ -127,6 +132,104 @@ export default function Home() {
     }
   };
 
+  const handleFileSelect = (file: FileMetadata) => {
+    setSelectedFiles((prev) => {
+      const isSelected = prev.some(
+        (f) => f.id === file.id && f.storageType === file.storageType
+      );
+      if (isSelected) {
+        return prev.filter(
+          (f) => !(f.id === file.id && f.storageType === file.storageType)
+        );
+      } else {
+        return [...prev, file];
+      }
+    });
+  };
+
+  const toggleSelectionMode = () => {
+    setSelectionMode(!selectionMode);
+    setSelectedFiles([]);
+  };
+
+  const selectAll = () => {
+    setSelectedFiles([...filteredFiles]);
+  };
+
+  const deselectAll = () => {
+    setSelectedFiles([]);
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedFiles.length === 0) return;
+
+    if (!confirm(`Delete ${selectedFiles.length} file(s)?`)) {
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/files/bulk", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "delete",
+          files: selectedFiles.map((f) => ({
+            id: f.id,
+            storageType: f.storageType,
+          })),
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        alert(result.message);
+        setSelectedFiles([]);
+        setSelectionMode(false);
+        fetchFiles();
+        fetchStats();
+      } else {
+        const error = await response.json();
+        alert(`Bulk delete failed: ${error.error}`);
+      }
+    } catch (error) {
+      console.error("Bulk delete error:", error);
+      alert("Bulk delete failed. Please try again.");
+    }
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedFiles.length === 0) return;
+
+    try {
+      const zip = new JSZip();
+
+      // Fetch all files and add to zip
+      for (const file of selectedFiles) {
+        try {
+          const response = await fetch(file.filePath);
+          const blob = await response.blob();
+          zip.file(file.originalName, blob);
+        } catch (error) {
+          console.error(`Failed to add ${file.originalName} to zip:`, error);
+        }
+      }
+
+      // Generate and download zip
+      const content = await zip.generateAsync({ type: "blob" });
+      const url = window.URL.createObjectURL(content);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `files-${new Date().getTime()}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+    } catch (error) {
+      console.error("Bulk download error:", error);
+      alert("Failed to download files. Please try again.");
+    }
+  };
+
   const categories = Object.keys(stats.combined.byCategory);
   const extensions = Object.keys(stats.combined.byExtension);
 
@@ -148,6 +251,17 @@ export default function Home() {
               </p>
             </div>
             <div className="flex gap-3">
+              <button
+                onClick={toggleSelectionMode}
+                className={`px-4 py-2 border rounded-lg transition-colors flex items-center gap-2 ${
+                  selectionMode
+                    ? "bg-blue-600 border-blue-600 text-white"
+                    : "border-gray-600 text-gray-300 hover:bg-gray-700"
+                }`}
+              >
+                {selectionMode ? <CheckSquare size={20} /> : <Square size={20} />}
+                {selectionMode ? "Exit Select" : "Select"}
+              </button>
               <button
                 onClick={() => {
                   fetchFiles();
@@ -174,6 +288,60 @@ export default function Home() {
           categories={categories}
           extensions={extensions}
         />
+
+        {/* Bulk Actions Bar */}
+        {selectionMode && selectedFiles.length > 0 && (
+          <div className="bg-blue-900/20 border-y border-blue-800 px-6 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-medium text-gray-200">
+                  {selectedFiles.length} file(s) selected
+                </span>
+                <button
+                  onClick={selectAll}
+                  className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Select All ({filteredFiles.length})
+                </button>
+                <button
+                  onClick={deselectAll}
+                  className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+                >
+                  Deselect All
+                </button>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleBulkDownload}
+                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors flex items-center gap-2"
+                >
+                  <Download size={18} />
+                  Download ({selectedFiles.length})
+                </button>
+                <button
+                  onClick={() => setMergeModalOpen(true)}
+                  disabled={selectedFiles.filter((f) => f.extension === "json").length < 2}
+                  className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+                  title={
+                    selectedFiles.filter((f) => f.extension === "json").length < 2
+                      ? "Select at least 2 JSON files to merge"
+                      : "Merge JSON files"
+                  }
+                >
+                  <GitMerge size={18} />
+                  Merge JSON
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors flex items-center gap-2"
+                >
+                  <Trash2 size={18} />
+                  Delete ({selectedFiles.length})
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         <main className="flex-1 overflow-y-auto p-6">
           {loading ? (
@@ -211,6 +379,11 @@ export default function Home() {
                     onPreview={setPreviewFile}
                     onDelete={handleDelete}
                     onRename={handleRename}
+                    selectionMode={selectionMode}
+                    isSelected={selectedFiles.some(
+                      (f) => f.id === file.id && f.storageType === file.storageType
+                    )}
+                    onSelect={handleFileSelect}
                   />
                 ))}
               </div>
@@ -228,6 +401,17 @@ export default function Home() {
       <FilePreviewModal
         file={previewFile}
         onClose={() => setPreviewFile(null)}
+      />
+
+      <JsonMergeModal
+        isOpen={mergeModalOpen}
+        onClose={() => setMergeModalOpen(false)}
+        files={selectedFiles}
+        onMergeComplete={() => {
+          fetchFiles();
+          fetchStats();
+          setSelectedFiles([]);
+        }}
       />
     </div>
   );
