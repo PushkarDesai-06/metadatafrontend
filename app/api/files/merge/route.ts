@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db/postgres";
 import { connectMongoDB, FileModel } from "@/lib/db/mongodb";
 import path from "path";
-import { writeFile } from "fs/promises";
+import { readFile, writeFile } from "fs/promises";
 
 type MergeStrategy = "shallow" | "deep" | "override" | "combine";
 
@@ -87,14 +87,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Get the actual JSON data from the files
-    const fs = require("fs").promises;
     const cleanPath1 = file1.filePath.startsWith("/") ? file1.filePath.slice(1) : file1.filePath;
     const cleanPath2 = file2.filePath.startsWith("/") ? file2.filePath.slice(1) : file2.filePath;
     const absolutePath1 = path.join(process.cwd(), "public", cleanPath1);
     const absolutePath2 = path.join(process.cwd(), "public", cleanPath2);
 
-    const data1 = JSON.parse(await fs.readFile(absolutePath1, "utf-8"));
-    const data2 = JSON.parse(await fs.readFile(absolutePath2, "utf-8"));
+    const data1 = JSON.parse(await readFile(absolutePath1, "utf-8"));
+    const data2 = JSON.parse(await readFile(absolutePath2, "utf-8"));
 
     // Perform merge based on strategy
     let mergedData: any;
@@ -119,7 +118,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Write merged data back to the first file
-    await fs.writeFile(absolutePath1, JSON.stringify(mergedData, null, 2), "utf-8");
+    await writeFile(absolutePath1, JSON.stringify(mergedData, null, 2), "utf-8");
 
     // Update metadata in database
     if (file1StorageType === "mongodb") {

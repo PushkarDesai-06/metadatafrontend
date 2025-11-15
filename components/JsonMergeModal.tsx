@@ -37,14 +37,6 @@ export default function JsonMergeModal({
     }
   }, [isOpen]);
 
-  useEffect(() => {
-    if (selectedFiles[0] && selectedFiles[1]) {
-      generatePreview();
-    } else {
-      setPreview(null);
-    }
-  }, [selectedFiles, mergeStrategy]);
-
   const generatePreview = async () => {
     if (!selectedFiles[0] || !selectedFiles[1]) return;
 
@@ -76,6 +68,19 @@ export default function JsonMergeModal({
       setError("Failed to generate preview");
     }
   };
+
+  useEffect(() => {
+    if (selectedFiles[0] && selectedFiles[1]) {
+      // Debounce preview generation to avoid race conditions
+      const timer = setTimeout(() => {
+        generatePreview();
+      }, 300);
+      return () => clearTimeout(timer);
+    } else {
+      setPreview(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedFiles, mergeStrategy]);
 
   const deepMerge = (obj1: any, obj2: any): any => {
     if (Array.isArray(obj1) && Array.isArray(obj2)) {

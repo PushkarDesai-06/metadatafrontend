@@ -77,26 +77,20 @@ export default function FileCard({
     }
   }, [isRenaming]);
 
-  useEffect(() => {
-    if (file.category === "Videos" && !videoThumbnail) {
-      generateVideoThumbnail();
-    }
-  }, [file.category, file.filePath, videoThumbnail]);
-
   const generateVideoThumbnail = () => {
     const video = document.createElement("video");
     video.src = file.filePath;
     video.crossOrigin = "anonymous";
     video.muted = true;
 
-    video.addEventListener("loadeddata", () => {
+    const handleLoadedData = () => {
       // Use deterministic random time based on file ID
       const timePercent = getRandomTimePercent(String(file.id));
       const randomTime = video.duration * timePercent;
       video.currentTime = randomTime;
-    });
+    };
 
-    video.addEventListener("seeked", () => {
+    const handleSeeked = () => {
       const canvas = document.createElement("canvas");
       canvas.width = video.videoWidth;
       canvas.height = video.videoHeight;
@@ -106,10 +100,25 @@ export default function FileCard({
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         setVideoThumbnail(canvas.toDataURL());
       }
-    });
+      
+      // Cleanup
+      video.removeEventListener("loadeddata", handleLoadedData);
+      video.removeEventListener("seeked", handleSeeked);
+      video.src = "";
+    };
+
+    video.addEventListener("loadeddata", handleLoadedData);
+    video.addEventListener("seeked", handleSeeked);
 
     video.load();
   };
+
+  useEffect(() => {
+    if (file.category === "Videos" && !videoThumbnail) {
+      generateVideoThumbnail();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [file.category, file.filePath, videoThumbnail]);
 
   const handleRename = () => {
     if (newName.trim() && newName !== file.originalName && onRename) {
@@ -236,16 +245,24 @@ export default function FileCard({
         </div>
         <div className={`flex gap-1 transition-opacity ${selectionMode ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
           <button
-            onClick={() => onPreview(file)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onPreview(file);
+            }}
             className="p-1.5 hover:bg-gray-700 rounded transition-colors"
             title="Preview"
+            disabled={selectionMode}
           >
             <Eye size={18} className="text-gray-400" />
           </button>
           <button
-            onClick={handleDownload}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleDownload();
+            }}
             className="p-1.5 hover:bg-gray-700 rounded transition-colors"
             title="Download"
+            disabled={selectionMode}
           >
             <Download size={18} className="text-gray-400" />
           </button>
@@ -257,6 +274,7 @@ export default function FileCard({
               }}
               className="p-1.5 hover:bg-gray-700 rounded transition-colors"
               title="More options"
+              disabled={selectionMode}
             >
               <MoreVertical size={18} className="text-gray-400" />
             </button>

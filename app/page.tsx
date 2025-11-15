@@ -202,15 +202,34 @@ export default function Home() {
 
     try {
       const zip = new JSZip();
+      const failedFiles: string[] = [];
+      const fileNameCounts = new Map<string, number>();
 
       // Fetch all files and add to zip
       for (const file of selectedFiles) {
         try {
           const response = await fetch(file.filePath);
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          
           const blob = await response.blob();
-          zip.file(file.originalName, blob);
+          
+          // Handle duplicate filenames
+          let fileName = file.originalName;
+          const count = fileNameCounts.get(fileName) || 0;
+          if (count > 0) {
+            const lastDot = fileName.lastIndexOf('.');
+            if (lastDot > 0) {
+              fileName = `${fileName.substring(0, lastDot)}_${count}${fileName.substring(lastDot)}`;
+            } else {
+              fileName = `${fileName}_${count}`;
+            }
+          }
+          fileNameCounts.set(file.originalName, count + 1);
+          
+          zip.file(fileName, blob);
         } catch (error) {
           console.error(`Failed to add ${file.originalName} to zip:`, error);
+          failedFiles.push(file.originalName);
         }
       }
 
@@ -224,6 +243,14 @@ export default function Home() {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+
+      // Notify user of any failures
+      if (failedFiles.length > 0) {
+        alert(
+          `Download completed with ${failedFiles.length} error(s).\n` +
+          `Failed files: ${failedFiles.join(", ")}`
+        );
+      }
     } catch (error) {
       console.error("Bulk download error:", error);
       alert("Failed to download files. Please try again.");

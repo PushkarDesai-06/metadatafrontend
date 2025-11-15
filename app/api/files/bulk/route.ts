@@ -26,7 +26,15 @@ export async function POST(request: NextRequest) {
       for (const fileInfo of files) {
         try {
           const { id, storageType } = fileInfo;
+          
+          if (!id || !storageType) {
+            results.failed++;
+            results.errors.push(`Invalid file info: missing id or storageType`);
+            continue;
+          }
+          
           let filePath: string | null = null;
+          let fileFound = false;
 
           if (storageType === "mongodb") {
             await connectMongoDB();
@@ -34,6 +42,7 @@ export async function POST(request: NextRequest) {
             if (file) {
               filePath = file.filePath;
               await FileModel.findByIdAndDelete(id);
+              fileFound = true;
             }
           } else {
             const result = await pool.query(
@@ -43,7 +52,14 @@ export async function POST(request: NextRequest) {
             if (result.rows.length > 0) {
               filePath = result.rows[0].file_path;
               await pool.query("DELETE FROM files WHERE id = $1", [id]);
+              fileFound = true;
             }
+          }
+
+          if (!fileFound) {
+            results.failed++;
+            results.errors.push(`File not found: ${id}`);
+            continue;
           }
 
           // Delete physical file
@@ -54,6 +70,7 @@ export async function POST(request: NextRequest) {
               await unlink(absolutePath);
             } catch (error: any) {
               console.error("Failed to delete physical file:", error);
+              // Don't fail the operation if physical file deletion fails
             }
           }
 
