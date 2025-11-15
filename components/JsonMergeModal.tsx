@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { FileMetadata } from "@/types/file";
-import { X, FileJson, GitMerge } from "lucide-react";
+import { X, FileJson, GitMerge, Eye } from "lucide-react";
 
 interface JsonMergeModalProps {
   isOpen: boolean;
@@ -142,41 +142,57 @@ export default function JsonMergeModal({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-gray-800 rounded-xl shadow-2xl border border-gray-700 w-full max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center z-50 p-4 animate-in fade-in duration-300">
+      <div className="bg-gradient-to-br from-gray-800/95 to-gray-900/95 backdrop-blur-2xl rounded-2xl shadow-2xl border border-gray-700/50 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col animate-in zoom-in-95 duration-300">
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-700">
-          <div className="flex items-center gap-3">
-            <GitMerge className="text-blue-500" size={24} />
-            <h2 className="text-2xl font-bold text-gray-100">Merge JSON Files</h2>
+        <div className="flex items-center justify-between p-6 border-b border-gray-700/50 bg-gradient-to-r from-blue-500/10 via-purple-500/10 to-pink-500/10">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-gradient-to-br from-blue-600 to-purple-600 rounded-xl shadow-lg">
+              <GitMerge className="text-white" size={24} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Merge JSON Files
+              </h2>
+              <p className="text-sm text-gray-400 mt-0.5">Combine your JSON data intelligently</p>
+            </div>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-gray-200 transition-colors"
+            className="p-2 text-gray-400 hover:text-gray-200 hover:bg-gray-700/50 rounded-lg transition-all duration-200 hover:scale-110"
           >
             <X size={24} />
           </button>
         </div>
 
         {/* Content */}
-        <div className="flex-1 overflow-y-auto p-6 space-y-6">
+        <div className="flex-1 overflow-y-auto p-8 space-y-6">
           {error && (
-            <div className="bg-red-900/20 border border-red-500 text-red-300 px-4 py-3 rounded-lg">
-              {error}
+            <div className="bg-gradient-to-r from-red-900/30 to-rose-900/30 border border-red-500/50 text-red-300 px-5 py-4 rounded-xl backdrop-blur-sm animate-in slide-in-from-top duration-300 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center shrink-0">
+                <X size={16} className="text-red-400" />
+              </div>
+              <span className="font-medium">{error}</span>
             </div>
           )}
 
           {jsonFiles.length < 2 ? (
-            <div className="text-center py-8 text-gray-400">
-              <FileJson size={48} className="mx-auto mb-4 text-gray-600" />
-              <p>You need at least 2 JSON files to merge</p>
+            <div className="text-center py-16 text-gray-400">
+              <div className="relative mb-6 inline-block">
+                <div className="absolute inset-0 bg-blue-500/20 blur-3xl rounded-full"></div>
+                <div className="relative bg-gradient-to-br from-gray-800 to-gray-900 p-6 rounded-2xl border border-gray-700/50">
+                  <FileJson size={48} className="text-blue-400" />
+                </div>
+              </div>
+              <p className="text-lg font-semibold text-gray-300">You need at least 2 JSON files to merge</p>
             </div>
           ) : (
             <>
               {/* File Selection */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-3">
+                    <span className="w-6 h-6 rounded-full bg-blue-500/20 flex items-center justify-center text-xs text-blue-400 font-bold border border-blue-500/30">1</span>
                     First File
                   </label>
                   <select
@@ -185,7 +201,7 @@ export default function JsonMergeModal({
                       const file = jsonFiles.find(f => String(f.id) === e.target.value);
                       setSelectedFiles([file || null, selectedFiles[1]]);
                     }}
-                    className="w-full bg-gray-700 border border-gray-600 text-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-gray-700/50 backdrop-blur-sm border border-gray-600/50 text-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all font-medium"
                   >
                     <option value="">Select a file...</option>
                     {jsonFiles.map((file) => (
@@ -197,7 +213,8 @@ export default function JsonMergeModal({
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-3">
+                    <span className="w-6 h-6 rounded-full bg-purple-500/20 flex items-center justify-center text-xs text-purple-400 font-bold border border-purple-500/30">2</span>
                     Second File
                   </label>
                   <select
@@ -206,7 +223,7 @@ export default function JsonMergeModal({
                       const file = jsonFiles.find(f => String(f.id) === e.target.value);
                       setSelectedFiles([selectedFiles[0], file || null]);
                     }}
-                    className="w-full bg-gray-700 border border-gray-600 text-gray-100 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full bg-gray-700/50 backdrop-blur-sm border border-gray-600/50 text-gray-100 rounded-xl px-4 py-3 focus:outline-none focus:ring-2 focus:ring-purple-500/50 focus:border-purple-500 transition-all font-medium"
                   >
                     <option value="">Select a file...</option>
                     {jsonFiles.map((file) => (
@@ -224,14 +241,14 @@ export default function JsonMergeModal({
 
               {/* Merge Strategy */}
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">
+                <label className="block text-sm font-semibold text-gray-300 mb-4">
                   Merge Strategy
                 </label>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  <label className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <label className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-300 ${
                     mergeStrategy === "shallow" 
-                      ? "border-blue-500 bg-blue-900/20" 
-                      : "border-gray-600 bg-gray-700 hover:border-gray-500"
+                      ? "border-blue-500 bg-gradient-to-br from-blue-500/20 to-blue-600/10 shadow-lg shadow-blue-500/20 scale-105" 
+                      : "border-gray-600/50 bg-gray-700/30 hover:border-gray-500 hover:bg-gray-700/50 backdrop-blur-sm"
                   }`}>
                     <input
                       type="radio"
@@ -249,10 +266,10 @@ export default function JsonMergeModal({
                     </div>
                   </label>
 
-                  <label className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                  <label className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-300 ${
                     mergeStrategy === "deep" 
-                      ? "border-blue-500 bg-blue-900/20" 
-                      : "border-gray-600 bg-gray-700 hover:border-gray-500"
+                      ? "border-blue-500 bg-gradient-to-br from-blue-500/20 to-blue-600/10 shadow-lg shadow-blue-500/20 scale-105" 
+                      : "border-gray-600/50 bg-gray-700/30 hover:border-gray-500 hover:bg-gray-700/50 backdrop-blur-sm"
                   }`}>
                     <input
                       type="radio"
@@ -270,10 +287,10 @@ export default function JsonMergeModal({
                     </div>
                   </label>
 
-                  <label className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                  <label className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-300 ${
                     mergeStrategy === "override" 
-                      ? "border-blue-500 bg-blue-900/20" 
-                      : "border-gray-600 bg-gray-700 hover:border-gray-500"
+                      ? "border-blue-500 bg-gradient-to-br from-blue-500/20 to-blue-600/10 shadow-lg shadow-blue-500/20 scale-105" 
+                      : "border-gray-600/50 bg-gray-700/30 hover:border-gray-500 hover:bg-gray-700/50 backdrop-blur-sm"
                   }`}>
                     <input
                       type="radio"
@@ -291,10 +308,10 @@ export default function JsonMergeModal({
                     </div>
                   </label>
 
-                  <label className={`flex items-start gap-3 p-4 border rounded-lg cursor-pointer transition-all ${
+                  <label className={`flex items-start gap-3 p-4 border rounded-xl cursor-pointer transition-all duration-300 ${
                     mergeStrategy === "combine" 
-                      ? "border-blue-500 bg-blue-900/20" 
-                      : "border-gray-600 bg-gray-700 hover:border-gray-500"
+                      ? "border-blue-500 bg-gradient-to-br from-blue-500/20 to-blue-600/10 shadow-lg shadow-blue-500/20 scale-105" 
+                      : "border-gray-600/50 bg-gray-700/30 hover:border-gray-500 hover:bg-gray-700/50 backdrop-blur-sm"
                   }`}>
                     <input
                       type="radio"
@@ -316,12 +333,13 @@ export default function JsonMergeModal({
 
               {/* Preview */}
               {preview && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-300 mb-2">
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+                  <label className="flex items-center gap-2 text-sm font-semibold text-gray-300 mb-3">
+                    <Eye size={16} className="text-green-400" />
                     Preview (first 20 lines)
                   </label>
-                  <div className="bg-gray-950 border border-gray-700 rounded-lg p-4 max-h-64 overflow-y-auto">
-                    <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap">
+                  <div className="bg-gray-950/80 backdrop-blur-sm border border-gray-700/50 rounded-xl p-5 max-h-80 overflow-y-auto shadow-inner">
+                    <pre className="text-xs text-green-400 font-mono whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(preview, null, 2).split('\n').slice(0, 20).join('\n')}
                       {JSON.stringify(preview, null, 2).split('\n').length > 20 && '\n...'}
                     </pre>
@@ -334,26 +352,26 @@ export default function JsonMergeModal({
 
         {/* Footer */}
         {jsonFiles.length >= 2 && (
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700">
+          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-700/50 bg-gray-800/30">
             <button
               onClick={onClose}
-              className="px-6 py-2 border border-gray-600 text-gray-300 rounded-lg hover:bg-gray-700 transition-colors"
+              className="px-6 py-3 border border-gray-600/50 text-gray-300 rounded-xl hover:bg-gray-700/50 hover:border-gray-500 transition-all duration-200 font-medium hover:scale-105"
             >
               Cancel
             </button>
             <button
               onClick={handleMerge}
               disabled={!selectedFiles[0] || !selectedFiles[1] || loading}
-              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-2"
+              className="px-8 py-3 bg-gradient-to-r from-blue-600 to-purple-600 text-white rounded-xl hover:from-blue-500 hover:to-purple-500 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100 transition-all duration-300 flex items-center gap-2 font-medium shadow-lg shadow-blue-500/30 hover:scale-105 hover:shadow-xl hover:shadow-blue-500/40"
             >
               {loading ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
                   Merging...
                 </>
               ) : (
                 <>
-                  <GitMerge size={18} />
+                  <GitMerge size={20} />
                   Merge Files
                 </>
               )}
